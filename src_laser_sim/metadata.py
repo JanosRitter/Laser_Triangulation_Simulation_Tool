@@ -8,11 +8,16 @@ from .config import (
     MULTILINE_COUNT, MULTILINE_SPACING,
     PLANE_Z, PLANE_ROT_X, PLANE_ROT_Y,
     SPHERE_CENTER, SPHERE_RADIUS, SPHERE_MISS_MODE, FALLBACK_PLANE_Z,
-    SIGMA, NOISE_LEVEL
+    SIGMA, NOISE_LEVEL,
+    SCAN_MODE, TRAJECTORY_TYPE, SCAN_N_FRAMES,
+    SCAN_START_POS, SCAN_END_POS
 )
 
 
-def build_metadata(num_visible, num_missing):
+def _build_common_metadata():
+    """
+    Gemeinsame Metadaten für Einzelbild- und Run-Speicherung.
+    """
     return {
         "simulation": {
             "mode": MODE,
@@ -63,7 +68,6 @@ def build_metadata(num_visible, num_missing):
             "noise_level": NOISE_LEVEL
         },
         "ground_truth": {
-            "file": "ground_truth_points.npy",
             "columns": ["index_0", "index_1", "x", "y", "z", "u", "v"],
             "index_meaning": {
                 "Point": ["ray_idx", "unused"],
@@ -80,9 +84,44 @@ def build_metadata(num_visible, num_missing):
                     "Zentralstrahl = (0, 0), falls als Zusatzstrahl vorhanden"
                 )
             }
-        },
-        "results_summary": {
-            "num_visible": num_visible,
-            "num_missing": num_missing
         }
     }
+
+
+def build_metadata(num_visible, num_missing):
+    """
+    Metadaten für einen einzelnen Simulationslauf.
+    """
+    metadata = _build_common_metadata()
+    metadata["ground_truth"]["file"] = "ground_truth_points.npy"
+    metadata["results_summary"] = {
+        "num_visible": num_visible,
+        "num_missing": num_missing
+    }
+    return metadata
+
+
+def build_run_metadata(num_frames_planned, num_frames_valid, num_frames_invalid):
+    """
+    Metadaten für einen gesamten Scanlauf / eine Trajektorie.
+    """
+    metadata = _build_common_metadata()
+
+    metadata["scan"] = {
+        "scan_mode": SCAN_MODE,
+        "trajectory_type": TRAJECTORY_TYPE,
+        "num_frames_planned": num_frames_planned,
+        "scan_n_frames_config": SCAN_N_FRAMES,
+        "start_pos": SCAN_START_POS.tolist(),
+        "end_pos": SCAN_END_POS.tolist(),
+        "frame_table_file": "frame_table.csv",
+        "frames_folder": "frames"
+    }
+
+    metadata["results_summary"] = {
+        "num_frames_planned": num_frames_planned,
+        "num_frames_valid": num_frames_valid,
+        "num_frames_invalid": num_frames_invalid
+    }
+
+    return metadata
