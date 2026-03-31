@@ -2,15 +2,15 @@
 
 ## Overview
 
-This project provides a simulation environment for laser triangulation measurements.
+This project provides a simulation environment for laser triangulation measurements.  
 It is designed to generate synthetic measurement data for testing and validating triangulation algorithms before real hardware measurements are available.
 
 The simulation models:
 
-* Laser emission (point, DOE, line, multi-line)
-* Interaction with simple geometric objects (plane, sphere)
-* Projection onto a virtual camera sensor
-* Generation of synthetic measurement images and ground truth data
+- Laser emission (point, DOE, line, multi-line)
+- Interaction with simple geometric objects (plane, sphere)
+- Projection onto a virtual camera sensor
+- Generation of synthetic measurement images and ground truth data
 
 The output can be directly used as input for the corresponding evaluation and triangulation pipeline.
 
@@ -18,44 +18,105 @@ The output can be directly used as input for the corresponding evaluation and tr
 
 ## Features
 
-* Multiple laser models:
+### Core Simulation
 
-  * Point laser
-  * DOE (Diffractive Optical Element) grid
-  * Line laser
-  * Multi-line laser
-* Configurable scene geometry:
+- Multiple laser models:
+  - Point laser
+  - DOE (Diffractive Optical Element) grid
+  - Line laser
+  - Multi-line laser
 
-  * Planes (flat or rotated)
-  * Spheres
-* Physically motivated projection onto a camera sensor
-* Synthetic image generation with:
+- Configurable scene geometry:
+  - Planes (flat or rotated)
+  - Spheres
 
-  * Gaussian spot modeling
-  * Noise
-* Ground truth export for validation
-* Fully reproducible simulations via metadata export
+- Physically motivated projection onto a camera sensor
+
+- Synthetic image generation with:
+  - Gaussian spot modeling
+  - Configurable noise
+
+---
+
+### Trajectory & Scanning
+
+- Simulation of moving laser / robot-based scanning
+- Multiple trajectory types:
+  - Single pose
+  - 1D linspace trajectory
+  - Explicit position list
+  - 2D grid scanning (area scans)
+
+- Supports:
+  - Line scans
+  - Surface scans
+  - Dense measurement patterns
+
+---
+
+### Data Management
+
+- Structured output for full scan runs
+- One folder per simulation run
+- Centralized metadata instead of per-frame duplication
+- Frame-wise tracking via CSV table
+
+---
+
+### Cropping & Efficient Storage
+
+- Optional cropping around laser spot:
+  - Reduces data size drastically
+  - Keeps exact pixel correspondence
+
+- Stores:
+  - Global pixel position
+  - Crop origin
+  - Local pixel coordinates inside crop
+
+---
+
+### Preview & Debug Visualization
+
+- Aggregated preview image of full scan
+- Built from noise-free signal
+- Useful for:
+  - Scan coverage validation
+  - Debugging trajectories
+  - Visual sanity checks
+
+---
+
+### Ground Truth & Reproducibility
+
+- Exact ground truth for every visible ray
+- Full simulation metadata export
+- Fully reproducible runs
 
 ---
 
 ## Project Structure
 
-```
+
 laser_simulation/
 ├─ main.py
 ├─ src_laser_sim/
-│  ├─ config.py
-│  ├─ metadata.py
-│  ├─ laser.py
-│  ├─ plane.py
-│  ├─ projection.py
-│  ├─ io_utils.py
-│  └─ utils.py
-├─ data/
-│  └─ output/
+│ ├─ config.py
+│ ├─ simulation.py
+│ ├─ trajectory.py
+│ ├─ frame_processing.py
+│ ├─ preview.py
+│ ├─ run_pipeline.py
+│ ├─ metadata.py
+│ ├─ laser.py
+│ ├─ plane.py
+│ ├─ projection.py
+│ ├─ io_utils.py
+│ └─ utils.py
+├─ Simulation_outputs/
 ├─ README.md
 └─ .gitignore
-```
+
 
 ---
 
@@ -63,172 +124,199 @@ laser_simulation/
 
 The simulation follows a forward model:
 
-1. **Laser emission**
+### 1. Laser emission
 
-   * Rays are generated based on the selected laser model and configuration.
+- Rays are generated based on the selected laser model.
 
-2. **Intersection with object**
+### 2. Intersection with object
 
-   * Each ray is intersected with the target geometry (plane or sphere).
+- Rays intersect with scene geometry (plane or sphere).
 
-3. **Projection to camera**
+### 3. Projection to camera
 
-   * Intersection points are projected onto the camera sensor.
+- Intersection points are projected onto the camera sensor.
 
-4. **Image generation**
+### 4. Image generation
 
-   * Gaussian spots are added to simulate laser intensity.
-   * Noise is optionally added.
+- Gaussian spots simulate laser intensity
+- A noise-free signal image is created
+- Noise is added to produce the final measurement image
 
-5. **Data export**
+### 5. Data processing
 
-   * Image (`.png`)
-   * Raw intensity array (`.npy`)
-   * Ground truth (`.npy`)
-   * Metadata (`.json`)
+- Frame results are processed:
+  - Visibility classification
+  - Optional cropping
+  - File generation
+
+### 6. Data export
+
+Depending on configuration:
+
+- Full images
+- Cropped images
+- Ground truth
+- Frame table
+- Run metadata
+- Preview image
 
 ---
 
-## Output Files
+## Output Structure
 
-Each simulation generates:
+Each trajectory run creates:
 
-### 1. Image (`.png`)
 
-* Visual representation of the simulated measurement
+Simulation_outputs/
+<MODE>/
+<PLANE_MODE>/
+<timestamp>/
+run_metadata.json
+frame_table.csv
+preview_sum.npy
+preview_sum.png
+frames/
+frame_000000.npy
+frame_000000.png
+frame_000000_ground_truth.npy
+crops/
+crop_000000.npy
+crop_000000.png
 
-### 2. Intensity array (`.npy`)
 
-* Shape: `(height, width)`
-* Values: pixel intensities
+---
 
-### 3. Metadata (`.json`)
+## Frame Table (frame_table.csv)
 
-* Contains all simulation parameters
-* Enables full reproducibility
+Each row corresponds to one simulated frame:
 
-### 4. Ground truth (`.npy`)
+| Column | Description |
+|--------|-------------|
+| frame_idx | Frame index |
+| laser_x/y/z | Laser position |
+| num_visible | Number of visible rays |
+| num_missing | Missing rays |
+| status | valid / invalid |
+| full_px/py | Pixel location in full image |
+| crop_* | Crop metadata |
+| image_* | Stored image files |
+| ground_truth_file | Ground truth file |
 
-Format:
+---
 
-```
+## Ground Truth Format
+
+
 [index_0, index_1, x, y, z, u, v]
-```
 
-* `(index_0, index_1)` → laser ray index
-* `(x, y, z)` → intersection point in world coordinates
-* `(u, v)` → projected pixel coordinates
 
----
-
-## Laser Models
-
-### DOE (Diffractive Optical Element)
-
-* Grid of rays defined by:
-
-  * `DOE_NX`, `DOE_NY`
-  * `DOE_FOV_X`, `DOE_FOV_Y`
-* Optional central ray (`DOE_CENTER`)
-* Uses centered signed indexing:
-
-```
-(-2, -2) ... (0,0) ... (2,2)
-```
+- (index_0, index_1) → ray index  
+- (x, y, z) → 3D intersection  
+- (u, v) → pixel position  
 
 ---
 
-### Line Laser
+## Trajectory Configuration
 
-* Rays distributed along a line
-* Gaussian intensity profile
+Defined in:
 
----
 
-### Multi-Line Laser
-
-* Multiple parallel line lasers
-* Controlled via:
-
-  * `MULTILINE_COUNT`
-  * `MULTILINE_SPACING`
-
----
-
-## Configuration
-
-All parameters are defined in:
-
-```
 src_laser_sim/config.py
-```
 
-Key categories:
 
-* Camera parameters
-* Laser parameters
-* Scene geometry
-* Rendering options
-
-Example:
+### Example: Line Scan
 
 ```python
-MODE = "DOE_Square"
+TRAJECTORY_TYPE = "linspace"
 
-DOE_NX = 4
-DOE_NY = 4
-DOE_FOV_X = 7.0
-DOE_FOV_Y = 7.0
-DOE_CENTER = True
-```
+SCAN_START_POS = np.array([0.05, -0.1, 0.0])
+SCAN_END_POS   = np.array([0.05,  0.1, 0.0])
+SCAN_N_FRAMES  = 50
+Example: Grid Scan (Area Scan)
+TRAJECTORY_TYPE = "grid"
 
----
+SCAN_START_POS = np.array([0.05, 0.05, 0.0])
+SCAN_END_POS   = np.array([0.10, 0.10, 0.0])
 
-## Usage
+GRID_NX = 10
+GRID_NY = 10
+GRID_ORDER = "serpentine"
+Cropping Configuration
+FRAME_SAVE_MODE = "both"   # "full", "crop", "both"
+
+CROP_WIDTH  = 50
+CROP_HEIGHT = 50
+
+CROP_ENABLED_MODES = ["Point"]
+Preview Configuration
+SAVE_PREVIEW_SUM = True
+Preview is generated from noise-free signal images
+Intended for visualization only (not evaluation)
+Usage
 
 Run the simulation:
 
-```bash
 python main.py
-```
 
 Outputs are stored in:
 
-```
-data/output/<timestamp>/
-```
+Simulation_outputs/
+Architecture
 
----
+The system is modularized into layers:
 
-## Notes
+Simulation Layer
+simulation.py
+laser.py
+plane.py
+projection.py
 
-* Camera distortion is currently not modeled.
-* The simulation assumes idealized optics.
-* Ground truth data is generated before noise is applied.
+→ Generates physical measurement data
 
----
+Trajectory Layer
+trajectory.py
 
-## Intended Use
+→ Defines scan paths
 
-This tool is intended for:
+Processing Layer
+frame_processing.py
 
-* Development of triangulation algorithms
-* Validation against known ground truth
-* Testing detection and fitting pipelines
-* Prototyping before real measurements
+→ Converts raw simulation output into structured frame data
 
----
+Preview Layer
+preview.py
 
-## Future Improvements
+→ Handles scan visualization
 
-* Camera distortion modeling
-* More complex geometries
-* Realistic noise models
-* Calibration support
-* Integration with evaluation pipeline
+Pipeline Layer
+run_pipeline.py
 
----
+→ Controls execution flow (single vs trajectory)
 
-## Author
+I/O Layer
+io_utils.py
+metadata.py
 
-Developed as part of a laser triangulation project.
+→ Handles storage and reproducibility
+
+Notes
+Camera distortion is not modeled
+Idealized optics assumed
+Ground truth is generated before noise
+Preview images are noise-free aggregations
+Intended Use
+Development of triangulation algorithms
+Validation with exact ground truth
+Testing detection pipelines
+Simulation of robotic scanning strategies
+Data generation for ML or optimization
+Future Improvements
+Camera distortion models
+More complex geometries
+Advanced noise models
+Real sensor simulation
+Calibration workflows
+Multi-camera setups
+Author
+
+Developed as part of a laser triangulation research project.
