@@ -77,8 +77,26 @@ def build_ground_truth_row(mode, meta, point_3d, px, py):
     return [col0, col1, point_3d[0], point_3d[1], point_3d[2], px, py]
 
 
-def simulate_frame(laser_pos, laser_rot_x, laser_rot_y):
-    base_dir = get_laser_direction(laser_rot_x, laser_rot_y)
+def simulate_frame(laser_pos, laser_rot_x, laser_rot_y, laser_rot_z=0.0):
+    """
+    Simuliert einen einzelnen Frame.
+
+    Parameters
+    ----------
+    laser_pos : np.ndarray shape (3,)
+        Laserposition im Kamerakoordinatensystem
+    laser_rot_x, laser_rot_y, laser_rot_z : float
+        Euler-Winkel des Lasers in Grad
+
+    Hinweis
+    -------
+    laser_rot_z wird ab jetzt berücksichtigt.
+    """
+    laser_pos = np.asarray(laser_pos, dtype=float)
+    if laser_pos.shape != (3,):
+        raise ValueError("laser_pos muss die Form (3,) haben.")
+
+    base_dir = get_laser_direction(laser_rot_x, laser_rot_y, laser_rot_z)
 
     image = np.zeros((IMG_HEIGHT, IMG_WIDTH), dtype=float)
     visible_points = []

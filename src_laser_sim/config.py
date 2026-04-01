@@ -14,11 +14,12 @@ SENSOR_HEIGHT = IMG_HEIGHT * PIXEL_SIZE
 
 
 # ============================================================
-# 🔴 LASER (Grundparameter)
+# 🔴 LASER (Grundparameter / Startpose)
 # ============================================================
 LASER_POS   = np.array([0.05, 0.0, 0.0], dtype=float)
 LASER_ROT_X = 0.0
 LASER_ROT_Y = -3.0
+LASER_ROT_Z = 0.0
 
 
 # ============================================================
@@ -29,30 +30,44 @@ SCAN_MODE = "single"
 # "single"
 # "trajectory"
 
-TRAJECTORY_TYPE = "grid"
+TRAJECTORY_TYPE = "local_increments"
 # Optionen:
 # "linspace"
 # "explicit_list"
 # "grid"
+# "local_increments"
 
+
+# ============================================================
+# 1D LINSPACE
+# ============================================================
 SCAN_N_FRAMES = 24
 # nur relevant für TRAJECTORY_TYPE = "linspace"
 
-SCAN_START_POS = np.array([0.02, -0.06, 0.0], dtype=float)
-SCAN_END_POS   = np.array([0.08, 0.06, 0.0], dtype=float)
+SCAN_START_POS = np.array([-0.02, -0.08, 0.0], dtype=float)
+SCAN_END_POS   = np.array([0.12,  0.08, 0.0], dtype=float)
 
 SCAN_ROT_X = LASER_ROT_X
 SCAN_ROT_Y = LASER_ROT_Y
+SCAN_ROT_Z = LASER_ROT_Z
 
+
+# ============================================================
+# EXPLIZITE POSITIONS-/POSELISTE
+# ============================================================
+# Erlaubt:
+# - (N, 3)  -> nur Positionen, Rotation wird aus LASER_ROT_* ergänzt
+# - (N, 6)  -> vollständige Posen [x, y, z, rx, ry, rz]
 EXPLICIT_POSITIONS = [
     np.array([0.05, 0.00, 0.0], dtype=float),
     np.array([0.05, 0.01, 0.0], dtype=float),
     np.array([0.05, 0.02, 0.0], dtype=float),
 ]
 
-# ---------------------------
-# 2D-Raster / Flächenscan
-# ---------------------------
+
+# ============================================================
+# 2D-RASTER / FLÄCHENSCAN
+# ============================================================
 GRID_NX = 5
 GRID_NY = 5
 
@@ -60,6 +75,46 @@ GRID_ORDER = "serpentine"
 # Optionen:
 # "row_major"   -> jede Zeile links nach rechts
 # "serpentine"  -> Schlangenlinie
+
+
+# ============================================================
+# LOKALE INKREMENT-TRAJEKTORIE
+# ============================================================
+LOCAL_INCREMENT_SEQUENCE = [
+    {
+        "dx": 0.02, "dy": 0.0, "dz": 0.0,
+        "drx": 0.0, "dry": 0.0, "drz": 0.0,
+        "repeat": 5
+    },
+    {
+        "dx": 0.0, "dy": -0.01, "dz": 0.0,
+        "drx": 0.0, "dry": 0.0, "drz": 0.0,
+        "repeat": 2
+    },
+    {
+        "dx": 0.00, "dy": 0.0, "dz": 0.0,
+        "drx": 0.0, "dry": -1, "drz": 0.0,
+        "repeat": 5
+    },
+    {
+        "dx": -0.02, "dy": -0.0, "dz": 0.0,
+        "drx": 0.0, "dry": 0.0, "drz": 0.0,
+        "repeat": 5
+    },
+    {
+        "dx": 0.0, "dy": -0.01, "dz": 0.0,
+        "drx": 0.0, "dry": 0.0, "drz": 0.0,
+        "repeat": 2
+    },
+    {
+        "dx": 0.0, "dy": 0.00, "dz": 0.0,
+        "drx": 0.0, "dry": 1.0, "drz": 0.0,
+        "repeat": 5
+    }
+]
+
+# Soll die Startpose als erster Frame mit in die Trajektorie aufgenommen werden?
+INCLUDE_START_POSE_IN_LOCAL_SEQUENCE = True
 
 
 # ============================================================
@@ -77,14 +132,13 @@ CROP_WIDTH  = 50
 CROP_HEIGHT = 50
 
 # Cropping zunächst für diese Modi aktivieren
-# Für deinen Forschungsfokus ist "Point" der wichtigste Fall.
 CROP_ENABLED_MODES = ["Point"]
 
 
 # ============================================================
 # 🔵 SIMULATIONSMODUS
 # ============================================================
-MODE = "DOE_Square"
+MODE = "Multi_Line_Laser"
 # Optionen:
 # "Point"
 # "DOE_Square"
@@ -138,7 +192,7 @@ PLANE_ROT_Y = 45.0
 # Kugel
 # ---------------------------
 SPHERE_CENTER = np.array([0.0, 0.0, 1.0], dtype=float)
-SPHERE_RADIUS = 0.09
+SPHERE_RADIUS = 0.08
 
 SPHERE_MISS_MODE = "discard"
 # "discard"

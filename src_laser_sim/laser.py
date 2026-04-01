@@ -4,30 +4,24 @@ from .config import (
     LINE_FOV, LINE_SAMPLES, LINE_AXIS,
     MULTILINE_COUNT, MULTILINE_SPACING
 )
+from .pose_utils import euler_xyz_to_rotation_matrix
 
 
 # ============================================================
 # 🔴 BASISRICHTUNG
 # ============================================================
-def get_laser_direction(rx_deg, ry_deg):
-    rx = np.deg2rad(rx_deg)
-    ry = np.deg2rad(ry_deg)
+def get_laser_direction(rx_deg, ry_deg, rz_deg=0.0):
+    """
+    Berechnet die Basisrichtung des Lasers aus Euler-Winkeln.
 
-    direction = np.array([0, 0, 1])
-
-    Rx = np.array([
-        [1, 0, 0],
-        [0, np.cos(rx), -np.sin(rx)],
-        [0, np.sin(rx),  np.cos(rx)]
-    ])
-
-    Ry = np.array([
-        [ np.cos(ry), 0, np.sin(ry)],
-        [0,           1, 0],
-        [-np.sin(ry), 0, np.cos(ry)]
-    ])
-
-    return Ry @ Rx @ direction
+    Ausgangsrichtung ist die +z-Achse.
+    Rotation wird über pose_utils konsistent mit
+    R = Rz @ Ry @ Rx aufgebaut.
+    """
+    direction = np.array([0.0, 0.0, 1.0], dtype=float)
+    R = euler_xyz_to_rotation_matrix(rx_deg, ry_deg, rz_deg)
+    dir_vec = R @ direction
+    return dir_vec / np.linalg.norm(dir_vec)
 
 
 # ============================================================
@@ -78,21 +72,10 @@ def generate_doe_directions(base_dir):
 
     for ax, kx in zip(angles_x, idx_x):
         for ay, ky in zip(angles_y, idx_y):
-            rx, ry = np.deg2rad(ay), np.deg2rad(ax)
+            # DOE-Abweichungen relativ zur Basisrichtung
+            R = euler_xyz_to_rotation_matrix(ay, ax, 0.0)
 
-            Rx = np.array([
-                [1, 0, 0],
-                [0, np.cos(rx), -np.sin(rx)],
-                [0, np.sin(rx),  np.cos(rx)]
-            ])
-
-            Ry = np.array([
-                [ np.cos(ry), 0, np.sin(ry)],
-                [0,           1, 0],
-                [-np.sin(ry), 0, np.cos(ry)]
-            ])
-
-            dir_vec = Ry @ Rx @ base_dir
+            dir_vec = R @ base_dir
             dir_vec = dir_vec / np.linalg.norm(dir_vec)
 
             directions.append(dir_vec)
@@ -120,7 +103,7 @@ def generate_line_directions(base_dir):
 
     axis = np.cross(base_dir, LINE_AXIS)
     if np.linalg.norm(axis) < 1e-8:
-        axis = np.array([0, 1, 0])
+        axis = np.array([0.0, 1.0, 0.0], dtype=float)
     axis = axis / np.linalg.norm(axis)
 
     for ray_idx, angle in enumerate(angles):
@@ -130,7 +113,7 @@ def generate_line_directions(base_dir):
             [0, -axis[2], axis[1]],
             [axis[2], 0, -axis[0]],
             [-axis[1], axis[0], 0]
-        ])
+        ], dtype=float)
 
         R = np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * (K @ K)
 
@@ -170,7 +153,7 @@ def generate_multiline_directions(base_dir):
             [0, -axis[2], axis[1]],
             [axis[2], 0, -axis[0]],
             [-axis[1], axis[0], 0]
-        ])
+        ], dtype=float)
 
         R = np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * (K @ K)
 

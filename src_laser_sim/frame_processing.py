@@ -33,7 +33,7 @@ def get_frame_status(result):
 def process_frame_result(
     result,
     frame_idx,
-    laser_pos,
+    laser_pose,
     folder,
     save_full_images,
     save_crops,
@@ -43,6 +43,21 @@ def process_frame_result(
     """
     Verarbeitet einen simulierten Frame für Speicherung und frame_table.
 
+    Parameters
+    ----------
+    result : dict
+        Ausgabe von simulate_frame(...)
+    frame_idx : int
+        Index des Frames
+    laser_pose : np.ndarray, shape (6,)
+        [x, y, z, rx, ry, rz]
+    folder : str
+        Zielordner
+    save_full_images : bool
+    save_crops : bool
+    crop_width : int
+    crop_height : int
+
     Rückgabe:
     {
         "has_signal": bool,
@@ -51,6 +66,10 @@ def process_frame_result(
         "frame_row": {...}
     }
     """
+    laser_pose = np.asarray(laser_pose, dtype=float)
+    if laser_pose.shape != (6,):
+        raise ValueError("laser_pose muss die Form (6,) haben.")
+
     has_signal, status = get_frame_status(result)
 
     image_npy_file = ""
@@ -129,17 +148,25 @@ def process_frame_result(
 
     frame_row = {
         "frame_idx": frame_idx,
-        "laser_x": float(laser_pos[0]),
-        "laser_y": float(laser_pos[1]),
-        "laser_z": float(laser_pos[2]),
+
+        "laser_x": float(laser_pose[0]),
+        "laser_y": float(laser_pose[1]),
+        "laser_z": float(laser_pose[2]),
+        "laser_rx": float(laser_pose[3]),
+        "laser_ry": float(laser_pose[4]),
+        "laser_rz": float(laser_pose[5]),
+
         "num_visible": int(result["num_visible"]),
         "num_missing": int(result["num_missing"]),
         "status": status,
+
         "full_px": full_px,
         "full_py": full_py,
+
         "image_npy_file": image_npy_file,
         "image_png_file": image_png_file,
         "ground_truth_file": ground_truth_file,
+
         "crop_npy_file": crop_npy_file,
         "crop_png_file": crop_png_file,
         "crop_x0": crop_x0,

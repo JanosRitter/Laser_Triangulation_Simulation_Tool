@@ -1,6 +1,5 @@
 from .config import (
     MODE, PLANE_MODE,
-    LASER_ROT_X, LASER_ROT_Y,
     FRAME_SAVE_MODE,
     SAVE_PREVIEW_SUM,
     CROP_WIDTH, CROP_HEIGHT,
@@ -25,15 +24,49 @@ from .preview import (
 )
 
 
-def run_single_simulation(laser_pos):
+def split_pose(pose):
+    """
+    Erwartet eine Pose der Form:
+        [x, y, z, rx, ry, rz]
+
+    Rückgabe:
+        laser_pos   -> np.ndarray shape (3,)
+        laser_rot_x -> float
+        laser_rot_y -> float
+        laser_rot_z -> float
+
+    Hinweis:
+    laser_rot_z wird aktuell noch nicht in simulate_frame verwendet,
+    wird hier aber bereits mitgeführt, damit die Pose-Schnittstelle
+    vollständig bleibt.
+    """
+    if len(pose) != 6:
+        raise ValueError(
+            f"Pose muss 6 Einträge haben [x,y,z,rx,ry,rz], erhalten: {pose}"
+        )
+
+    laser_pos = pose[:3].astype(float)
+    laser_rot_x = float(pose[3])
+    laser_rot_y = float(pose[4])
+    laser_rot_z = float(pose[5])
+
+    return laser_pos, laser_rot_x, laser_rot_y, laser_rot_z
+
+
+def run_single_simulation(pose):
     """
     Führt eine Einzelbild-Simulation aus und speichert sie wie bisher
     als klassischen Einzel-Output.
+
+    Erwartet jetzt eine Pose:
+        [x, y, z, rx, ry, rz]
     """
+    laser_pos, laser_rot_x, laser_rot_y, _laser_rot_z = split_pose(pose)
+
     result = simulate_frame(
         laser_pos=laser_pos,
-        laser_rot_x=LASER_ROT_X,
-        laser_rot_y=LASER_ROT_Y
+        laser_rot_x=laser_rot_x,
+        laser_rot_y=laser_rot_y
     )
 
     folder = get_output_folder(MODE, PLANE_MODE)
@@ -67,7 +100,10 @@ def run_single_simulation(laser_pos):
 
 def run_trajectory_simulation(positions):
     """
-    Führt eine Trajektorien-Simulation mit mehreren Laserpositionen aus.
+    Führt eine Trajektorien-Simulation mit mehreren Laserposen aus.
+
+    Erwartet positions als Array der Form (N, 6):
+        [x, y, z, rx, ry, rz]
     """
     print(f"\n🚗 Trajektorie mit {len(positions)} Positionen")
 
@@ -76,10 +112,12 @@ def run_trajectory_simulation(positions):
 
     preview_sum = None
     if SAVE_PREVIEW_SUM:
+        first_pos, first_rx, first_ry, _first_rz = split_pose(positions[0])
+
         first_result = simulate_frame(
-            laser_pos=positions[0],
-            laser_rot_x=LASER_ROT_X,
-            laser_rot_y=LASER_ROT_Y
+            laser_pos=first_pos,
+            laser_rot_x=first_rx,
+            laser_rot_y=first_ry
         )
         preview_sum = initialize_preview(first_result)
 
@@ -87,17 +125,20 @@ def run_trajectory_simulation(positions):
     save_full_images = FRAME_SAVE_MODE in ["full", "both"]
     save_crops = FRAME_SAVE_MODE in ["crop", "both"] and cropping_active
 
-    for frame_idx, laser_pos in enumerate(positions):
+    for frame_idx, pose in enumerate(positions):
+        laser_pos, laser_rot_x, laser_rot_y, laser_rot_z = split_pose(pose)
+
         result = simulate_frame(
             laser_pos=laser_pos,
-            laser_rot_x=LASER_ROT_X,
-            laser_rot_y=LASER_ROT_Y
+            laser_rot_x=laser_rot_x,
+            laser_rot_y=laser_rot_y,
+            laser_rot_z=laser_rot_z
         )
 
         processed = process_frame_result(
             result=result,
             frame_idx=frame_idx,
-            laser_pos=laser_pos,
+            laser_pose=pose,
             folder=folder,
             save_full_images=save_full_images,
             save_crops=save_crops,
@@ -112,7 +153,7 @@ def run_trajectory_simulation(positions):
 
         print(
             f"Frame {frame_idx:03d}: "
-            f"LASER_POS={laser_pos} | "
+            f"LASER_POSE={pose} | "
             f"sichtbar={result['num_visible']} | "
             f"verworfen={result['num_missing']} | "
             f"status={processed['status']}"

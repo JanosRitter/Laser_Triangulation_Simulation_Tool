@@ -1,6 +1,6 @@
 from .config import (
     MODE, PLANE_MODE,
-    LASER_POS, LASER_ROT_X, LASER_ROT_Y,
+    LASER_POS, LASER_ROT_X, LASER_ROT_Y, LASER_ROT_Z,
     IMG_WIDTH, IMG_HEIGHT,
     FOCAL_LENGTH, PIXEL_SIZE, SENSOR_WIDTH, SENSOR_HEIGHT,
     DOE_NX, DOE_NY, DOE_FOV_X, DOE_FOV_Y, DOE_CENTER,
@@ -10,7 +10,12 @@ from .config import (
     SPHERE_CENTER, SPHERE_RADIUS, SPHERE_MISS_MODE, FALLBACK_PLANE_Z,
     SIGMA, NOISE_LEVEL,
     SCAN_MODE, TRAJECTORY_TYPE, SCAN_N_FRAMES,
-    SCAN_START_POS, SCAN_END_POS
+    SCAN_START_POS, SCAN_END_POS,
+    SCAN_ROT_X, SCAN_ROT_Y, SCAN_ROT_Z,
+    GRID_NX, GRID_NY, GRID_ORDER,
+    EXPLICIT_POSITIONS,
+    LOCAL_INCREMENT_SEQUENCE,
+    INCLUDE_START_POSE_IN_LOCAL_SEQUENCE,
 )
 
 
@@ -35,6 +40,7 @@ def _build_common_metadata():
             "position": LASER_POS.tolist(),
             "rotation_x_deg": LASER_ROT_X,
             "rotation_y_deg": LASER_ROT_Y,
+            "rotation_z_deg": LASER_ROT_Z,
             "line_axis": LINE_AXIS.tolist()
         },
         "doe": {
@@ -88,6 +94,85 @@ def _build_common_metadata():
     }
 
 
+def _build_trajectory_config():
+    """
+    Baut die konfigurationsspezifischen Trajectory-Metadaten
+    abhängig vom ausgewählten TRAJECTORY_TYPE.
+    """
+    if TRAJECTORY_TYPE == "linspace":
+        return {
+            "type": "linspace",
+            "num_frames": SCAN_N_FRAMES,
+            "start_pos": SCAN_START_POS.tolist(),
+            "end_pos": SCAN_END_POS.tolist(),
+            "rotation_x_deg": SCAN_ROT_X,
+            "rotation_y_deg": SCAN_ROT_Y,
+            "rotation_z_deg": SCAN_ROT_Z,
+        }
+
+    if TRAJECTORY_TYPE == "grid":
+        return {
+            "type": "grid",
+            "start_pos": SCAN_START_POS.tolist(),
+            "end_pos": SCAN_END_POS.tolist(),
+            "grid_nx": GRID_NX,
+            "grid_ny": GRID_NY,
+            "grid_order": GRID_ORDER,
+            "rotation_x_deg": SCAN_ROT_X,
+            "rotation_y_deg": SCAN_ROT_Y,
+            "rotation_z_deg": SCAN_ROT_Z,
+        }
+
+    if TRAJECTORY_TYPE == "explicit_list":
+        return {
+            "type": "explicit_list",
+            "num_entries": len(EXPLICIT_POSITIONS),
+            "positions_or_poses": [
+                list(map(float, p)) for p in EXPLICIT_POSITIONS
+            ],
+            "note": (
+                "Einträge mit Länge 3 werden als Positionen interpretiert und "
+                "mit der globalen Laserrotation ergänzt; Einträge mit Länge 6 "
+                "werden als vollständige Pose [x,y,z,rx,ry,rz] interpretiert."
+            )
+        }
+
+    if TRAJECTORY_TYPE == "local_increments":
+        return {
+            "type": "local_increments",
+            "start_pose": [
+                float(LASER_POS[0]),
+                float(LASER_POS[1]),
+                float(LASER_POS[2]),
+                float(LASER_ROT_X),
+                float(LASER_ROT_Y),
+                float(LASER_ROT_Z),
+            ],
+            "include_start_pose": INCLUDE_START_POSE_IN_LOCAL_SEQUENCE,
+            "increments": [
+                {
+                    "dx_m": float(step["dx"]),
+                    "dy_m": float(step["dy"]),
+                    "dz_m": float(step["dz"]),
+                    "drx_deg": float(step["drx"]),
+                    "dry_deg": float(step["dry"]),
+                    "drz_deg": float(step["drz"]),
+                    "repeat": int(step["repeat"]),
+                }
+                for step in LOCAL_INCREMENT_SEQUENCE
+            ],
+            "note": (
+                "Die Inkremente sind lokal im aktuellen Laser-Koordinatensystem "
+                "definiert und werden sequentiell verkettet."
+            )
+        }
+
+    return {
+        "type": TRAJECTORY_TYPE,
+        "note": "Keine spezifische Trajectory-Konfiguration hinterlegt."
+    }
+
+
 def build_metadata(num_visible, num_missing):
     """
     Metadaten für einen einzelnen Simulationslauf.
@@ -111,11 +196,9 @@ def build_run_metadata(num_frames_planned, num_frames_valid, num_frames_invalid)
         "scan_mode": SCAN_MODE,
         "trajectory_type": TRAJECTORY_TYPE,
         "num_frames_planned": num_frames_planned,
-        "scan_n_frames_config": SCAN_N_FRAMES,
-        "start_pos": SCAN_START_POS.tolist(),
-        "end_pos": SCAN_END_POS.tolist(),
         "frame_table_file": "frame_table.csv",
-        "frames_folder": "frames"
+        "frames_folder": "frames",
+        "trajectory_config": _build_trajectory_config()
     }
 
     metadata["results_summary"] = {
